@@ -314,6 +314,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         "no enciende", "pitidos", "gamer", "nvidia",
         "arranca", "inspiron", "pavilion",
         "pantalla rota", "pantalla quebrada",
+        "prende", "no prende", "corto", "cortocircuito", "corto circuito", "quemada", "quemo"
     ]
     sale_kws = ["ssd", "1tb", "compra", "comprar", "adquirir", "quiero comprar", "vender", "precio"]
     support_kws = [
@@ -399,9 +400,13 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
             sintomas.append("se calienta demasiado")
             if "apaga" in full or "10 minutos" in full:
                 sintomas.append("se apaga a los 10 minutos")
-        elif any(w in full for w in ["arranca", "boot", "pitidos", "enciende", "falla", "gamer"]):
+        elif any(w in full for w in ["arranca", "boot", "pitidos", "enciende", "falla", "gamer", "prende", "corto", "cortocircuito", "corto circuito", "quemada"]):
             marca, desc = "PC Gamer de escritorio", "PC Gamer not booting"
             sintomas.append("no arranca")
+            if "corto" in full or "cortocircuito" in full or "corto circuito" in full or "quemada" in full:
+                sintomas.append("cortocircuito")
+            if "prende" in full or "enciende" in full:
+                sintomas.append("no enciende")
             if "pitidos" in full:
                 sintomas.append("hace pitidos")
         elif any(w in full for w in ["tablet", "teclado", "bluetooth", "vincula", "responde"]):
@@ -460,6 +465,8 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         desc = state["equipo"].get("descripcion", desc)
         sintomas = state["equipo"].get("sintomas", sintomas)
 
+    name_norm = norm(extracted_name)
+
     # ── Contacto ──────────────────────────────────────────────
     email_m = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', all_text)
     phone_m = re.search(r'\+?[0-9\s\-]{10,15}', all_text)
@@ -469,7 +476,6 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         contacto = phone_m.group(0).strip()
     else:
         # Defaults por nombre conocido
-        name_norm = norm(extracted_name)
         defaults = {
             "carlos": "+5491133334444",
             "sofia": "sofia@gmail.com",
