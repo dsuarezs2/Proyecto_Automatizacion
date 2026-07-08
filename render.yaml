@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: techserv-dashboard
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Render inyecta PORT automáticamente; server.py debe leerlo (ver nota abajo)
+      - key: PORT
+        value: "8080"
+    autoDeploy: true

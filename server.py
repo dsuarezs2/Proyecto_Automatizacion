@@ -351,4 +351,5 @@ def run(server_class=HTTPServer, handler_class=DashboardHandler, port=8000):
 
 if __name__ == "__main__":
     reset_inventory()
-    run()
+    port = int(os.environ.get("PORT", 8000))
+    run(port=port)
