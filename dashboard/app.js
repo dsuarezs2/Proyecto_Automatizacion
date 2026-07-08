@@ -26,6 +26,13 @@ document.addEventListener("DOMContentLoaded", () => {
     initDemoButtons();
     initForms();
     refreshInventory();
+    refreshTicketHistory();
+    
+    // Hook refresh history button
+    const btnRefreshHistory = document.getElementById("btn-refresh-history");
+    if (btnRefreshHistory) {
+        btnRefreshHistory.addEventListener("click", refreshTicketHistory);
+    }
     
     // Auto-resize textarea
     const textarea = document.getElementById("client-query");
@@ -49,6 +56,10 @@ function initTabs() {
             
             btn.classList.add("active");
             document.getElementById(targetTab).classList.add("active");
+            
+            if (targetTab === "tab-history") {
+                refreshTicketHistory();
+            }
         });
     });
 }
@@ -160,6 +171,7 @@ function initDemoButtons() {
                     
                     resetGraphNodes();
                     await refreshInventory();
+                    await refreshTicketHistory();
                     
                     alert("Stock e inventario restablecidos correctamente.");
                 }
@@ -360,8 +372,8 @@ async function playTimelineAnimation(simulationData) {
     if (state.next_step === "reparar_equipo") {
         swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> ESPERANDO APROBACIÓN</span>`;
         
-        // Buscar el evento de notificación del presupuesto
-        const budgetNotif = events.find(e => e.evento === "cliente.notificado" && e.payload && e.payload.mensaje_cliente && e.payload.mensaje_cliente.includes("¿Aprueba"));
+        // Buscar el evento de notificación del presupuesto (último evento)
+        const budgetNotif = [...events].reverse().find(e => e.evento === "cliente.notificado" && e.payload && e.payload.mensaje_cliente && e.payload.mensaje_cliente.includes("¿Aprueba"));
         const promptText = budgetNotif ? budgetNotif.payload.mensaje_cliente : "¿Aprueba el presupuesto?";
         
         document.getElementById("interactive-prompt-text").innerText = promptText;
@@ -370,8 +382,8 @@ async function playTimelineAnimation(simulationData) {
     } else if (state.next_step === "pedir_aclaracion") {
         swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> INCOMPLETO</span>`;
         
-        // Buscar el evento de aclaración solicitada
-        const aclEvent = events.find(e => e.evento === "ticket.aclaracion_solicitada");
+        // Buscar el evento de aclaración solicitada (último evento)
+        const aclEvent = [...events].reverse().find(e => e.evento === "ticket.aclaracion_solicitada");
         const promptText = aclEvent ? aclEvent.payload.respuesta_cliente : "Se requiere aclaración del cliente.";
         
         document.getElementById("interactive-prompt-text").innerText = promptText;
@@ -389,6 +401,9 @@ async function playTimelineAnimation(simulationData) {
     
     // Re-enable form
     setLoadingState(false);
+    
+    // Auto refresh history list so it updates with latest state
+    refreshTicketHistory();
 }
 
 // 7. Graph Node Highlight controller
@@ -594,4 +609,213 @@ function updateSharedMemoryTab(state) {
 // Small Utility functions
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 10. Load and Render Ticket History
+async function refreshTicketHistory() {
+    const listContainer = document.getElementById("history-list");
+    if (!listContainer) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/tickets`);
+        if (!response.ok) throw new Error("Fallo al obtener el historial de tickets");
+        const tickets = await response.json();
+        
+        if (tickets.length === 0) {
+            listContainer.innerHTML = `
+                <tr>
+                    <td colspan="7" class="history-empty">No hay tickets guardados en la base de datos.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        listContainer.innerHTML = "";
+        tickets.forEach(tkt => {
+            const tr = document.createElement("tr");
+            
+            // Format request type badge
+            let typeBadge = `<span class="badge badge-inactive">${tkt.tipo_solicitud.toUpperCase()}</span>`;
+            if (tkt.tipo_solicitud === "reparacion") {
+                typeBadge = `<span class="badge badge-green">Reparación</span>`;
+            } else if (tkt.tipo_solicitud === "venta") {
+                typeBadge = `<span class="badge badge-blue">Venta</span>`;
+            } else if (tkt.tipo_solicitud === "soporte") {
+                typeBadge = `<span class="badge badge-purple">Soporte</span>`;
+            }
+            
+            // Format status badge
+            let statusBadge = `<span class="status-badge-inline">${tkt.estado_ticket}</span>`;
+            
+            // Format datetime local
+            let dateStr = tkt.created_at;
+            try {
+                const d = new Date(tkt.created_at + (tkt.created_at.includes("Z") ? "" : "Z"));
+                dateStr = d.toLocaleString();
+            } catch(e) {}
+            
+            tr.innerHTML = `
+                <td class="ticket-id-cell">${tkt.ticket_id}</td>
+                <td class="client-cell">${tkt.cliente_nombre}</td>
+                <td>${typeBadge}</td>
+                <td>${tkt.marca_modelo}</td>
+                <td>${statusBadge}</td>
+                <td class="date-cell">${dateStr}</td>
+                <td>
+                    <button class="btn-resume" data-id="${tkt.ticket_id}">
+                        <i class="fa-solid fa-folder-open"></i> Retomar
+                    </button>
+                </td>
+            `;
+            
+            // Add listener to the Resume button
+            tr.querySelector(".btn-resume").addEventListener("click", () => {
+                resumeTicket(tkt.ticket_id);
+            });
+            
+            listContainer.appendChild(tr);
+        });
+    } catch (err) {
+        console.error("Error loading ticket history:", err);
+        listContainer.innerHTML = `
+            <tr>
+                <td colspan="7" class="history-empty" style="color:var(--neon-pink);">
+                    Error al cargar historial: ${err.message}
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// 11. Resume an existing ticket
+async function resumeTicket(ticketId) {
+    if (isSimulating) return;
+    setLoadingState(true);
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/status?thread_id=${ticketId}`);
+        if (!response.ok) throw new Error("Fallo al obtener estado del ticket");
+        const data = await response.json();
+        
+        const { state, events } = data;
+        
+        // Load into UI
+        await resumeTicketIntoUI(ticketId, state, events);
+        
+        // Fetch inventory to make sure current screen inventory is correct
+        await refreshInventory();
+        
+        // Switch to the Shared Memory tab so the user can inspect the loaded memory
+        const memTabBtn = document.querySelector('.tab-btn[data-tab="tab-memory"]');
+        if (memTabBtn) memTabBtn.click();
+        
+    } catch (err) {
+        console.error("Error resuming ticket:", err);
+        alert("Error al retomar el ticket: " + err.message);
+    } finally {
+        setLoadingState(false);
+    }
+}
+
+// 12. Load ticket state directly into UI components instantly
+async function resumeTicketIntoUI(ticketId, state, events) {
+    activeTicketId = ticketId;
+    document.getElementById("active-ticket-lbl").innerText = ticketId;
+    
+    // Update basic ticket tags
+    document.getElementById("mem-ticket-id").innerText = `"${ticketId}"`;
+    
+    // 1. Populate terminal with all event history logs instantly
+    const terminal = document.getElementById("mcp-events-terminal");
+    terminal.innerHTML = `<div class="term-line success"># Ticket ${ticketId} recuperado exitosamente con ${events.length} eventos.</div>`;
+    
+    events.forEach(ev => {
+        const timestamp = new Date(ev.timestamp).toLocaleTimeString();
+        const termLine = document.createElement("div");
+        
+        let accentClass = "info";
+        if (ev.evento === "ticket.error") accentClass = "error";
+        else if (ev.evento === "reparacion.completada" || ev.evento === "venta.procesada") accentClass = "success";
+        else if (ev.evento === "inventario.verificado" && state.inventario && !state.inventario.disponible) accentClass = "warning";
+        
+        termLine.className = `term-line ${accentClass}`;
+        termLine.innerHTML = `[${timestamp}] <strong>${ev.evento}</strong> publicado por <strong>${ev.agente_emisor}</strong>`;
+        
+        const payloadBlock = document.createElement("pre");
+        payloadBlock.className = "term-json";
+        payloadBlock.innerText = JSON.stringify(ev.payload, null, 2);
+        termLine.appendChild(payloadBlock);
+        
+        terminal.appendChild(termLine);
+    });
+    terminal.scrollTop = terminal.scrollHeight;
+    
+    // 2. Reset and animate graph nodes
+    resetGraphNodes();
+    
+    // 3. Update Simulated phone chat history
+    const canal = state.cliente.canal_preferido || "whatsapp";
+    updateDeviceChannelStyle(canal);
+    document.getElementById("notify-client-name").innerText = state.cliente.nombre || "Cliente";
+    
+    const messagesArea = document.getElementById("chat-messages");
+    messagesArea.innerHTML = "";
+    
+    // Reconstruct conversation from historial_conversacion
+    const conversation = state.historial_conversacion || [];
+    if (conversation.length === 0) {
+        messagesArea.innerHTML = `<div class="chat-system-msg">No hay notificaciones activas</div>`;
+    } else {
+        conversation.forEach(msg => {
+            if (msg.role === "user") {
+                appendChatBubble("cliente", msg.content);
+            } else {
+                appendChatBubble("notificaciones", msg.content, "", canal);
+            }
+        });
+    }
+    
+    // 4. Update Shared Memory Tab
+    updateSharedMemoryTab(state);
+    
+    // 5. Update Telemetry
+    const real_tokens = Object.values(state.token_usage || {}).reduce((acc, val) => acc + val, 0);
+    document.getElementById("tele-latency").innerHTML = `N/A <small>(resumido)</small>`;
+    document.getElementById("tele-tokens").innerHTML = `${real_tokens} <small>tokens</small>`;
+    
+    const swarmStatusBadge = document.getElementById("tele-swarm-status");
+    
+    // 6. Handle interactive prompts depending on next_step
+    if (state.next_step === "reparar_equipo") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> ESPERANDO APROBACIÓN</span>`;
+        
+        // Find budget message (latest event)
+        const budgetNotif = [...events].reverse().find(e => e.evento === "cliente.notificado" && e.payload && e.payload.mensaje_cliente && e.payload.mensaje_cliente.includes("¿Aprueba"));
+        const promptText = budgetNotif ? budgetNotif.payload.mensaje_cliente : "¿Aprueba el presupuesto?";
+        
+        document.getElementById("interactive-prompt-text").innerText = promptText;
+        document.getElementById("interactive-prompt-card").classList.remove("hidden");
+        document.getElementById("interactive-response").focus();
+    } else if (state.next_step === "pedir_aclaracion") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> INCOMPLETO</span>`;
+        
+        // Find clarification message (latest event)
+        const aclEvent = [...events].reverse().find(e => e.evento === "ticket.aclaracion_solicitada");
+        const promptText = aclEvent ? aclEvent.payload.respuesta_cliente : "Se requiere aclaración del cliente.";
+        
+        document.getElementById("interactive-prompt-text").innerText = promptText;
+        document.getElementById("interactive-prompt-card").classList.remove("hidden");
+        document.getElementById("interactive-response").focus();
+    } else if (state.estado_ticket === "entregado" || state.estado_ticket === "venta_procesada" || state.estado_ticket === "resuelto_remoto") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> RESUELTO</span>`;
+        document.getElementById("interactive-prompt-card").classList.add("hidden");
+        activeTicketId = null;
+    } else if (state.estado_ticket === "cancelado") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-orange"><i class="fa-solid fa-circle-xmark"></i> CANCELADO</span>`;
+        document.getElementById("interactive-prompt-card").classList.add("hidden");
+        activeTicketId = null;
+    } else {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-inactive">INACTIVO</span>`;
+        document.getElementById("interactive-prompt-card").classList.add("hidden");
+    }
 }

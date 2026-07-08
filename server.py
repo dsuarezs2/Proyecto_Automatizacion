@@ -138,6 +138,46 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 time.sleep(0.01)
             self.close_connection = True
             return
+
+        # API: GET /api/tickets
+        if path == "/api/tickets":
+            import sqlite3
+            from src.checkpointer import SQLiteCheckpointer
+            checkpointer = SQLiteCheckpointer()
+            conn = sqlite3.connect(checkpointer.db_path)
+            tickets = []
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT thread_id, state, created_at FROM checkpoints ORDER BY created_at DESC")
+                rows = cursor.fetchall()
+                for row in rows:
+                    thread_id = row[0]
+                    state_json = row[1]
+                    created_at = row[2]
+                    try:
+                        state_val = json.loads(state_json)
+                    except Exception:
+                        state_val = {}
+                    
+                    tickets.append({
+                        "ticket_id": thread_id,
+                        "cliente_nombre": state_val.get("cliente", {}).get("nombre") or "Cliente",
+                        "tipo_solicitud": state_val.get("tipo_solicitud") or "N/A",
+                        "estado_ticket": state_val.get("estado_ticket") or "recibido",
+                        "marca_modelo": state_val.get("equipo", {}).get("marca_modelo") or "N/A",
+                        "created_at": created_at
+                    })
+            except Exception:
+                pass
+            finally:
+                conn.close()
+                
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(tickets, ensure_ascii=False).encode("utf-8"))
+            return
             
         # 2. Serve static files
         if path == "/":

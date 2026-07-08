@@ -314,7 +314,8 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         "no enciende", "pitidos", "gamer", "nvidia",
         "arranca", "inspiron", "pavilion",
         "pantalla rota", "pantalla quebrada",
-        "prende", "no prende", "corto", "cortocircuito", "corto circuito", "quemada", "quemo"
+        "prende", "no prende", "corto", "cortocircuito", "corto circuito", "quemada", "quemo",
+        "negro", "negra"
     ]
     sale_kws = ["ssd", "1tb", "compra", "comprar", "adquirir", "quiero comprar", "vender", "precio"]
     support_kws = [
@@ -388,7 +389,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         full = norm(" ".join(texts))
         marca, desc, sintomas = "", "", []
 
-        if any(w in full for w in ["pantalla", "screen", "broken", "rota", "quebrada", "imagen"]):
+        if any(w in full for w in ["pantalla", "screen", "broken", "rota", "quebrada", "imagen", "negro", "negra"]):
             marca, desc = "HP Pavilion", "HP Laptop Screen broken"
             sintomas.append("pantalla rota")
             if "hp" in full:

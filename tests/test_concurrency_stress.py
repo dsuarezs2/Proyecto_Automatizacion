@@ -8,7 +8,7 @@ import sqlite3
 import urllib.request
 import urllib.error
 import json
-from http.server import HTTPServer
+from http.server import HTTPServer, ThreadingHTTPServer
 from src.checkpointer import SQLiteCheckpointer
 from src.graph import read_inventory, write_inventory
 from server import DashboardHandler
@@ -96,7 +96,7 @@ class TestConcurrencyStress(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.port = find_free_port()
-        cls.server = HTTPServer(("127.0.0.1", cls.port), LoggingDashboardHandler)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", cls.port), LoggingDashboardHandler)
         cls.server_thread = threading.Thread(target=cls.server.serve_forever)
         cls.server_thread.daemon = True
         cls.server_thread.start()

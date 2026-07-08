@@ -213,6 +213,9 @@
                         <button class="tab-btn" data-tab="tab-stock">
                             <i class="fa-solid fa-warehouse text-emerald"></i> Inventario Real de Repuestos
                         </button>
+                        <button class="tab-btn" data-tab="tab-history">
+                            <i class="fa-solid fa-clock-rotate-left text-purple"></i> Historial de Tickets
+                        </button>
                     </div>
                     <span class="ticket-id-tag">Ticket Activo: <strong id="active-ticket-lbl">Ninguno</strong></span>
                 </div>
@@ -271,6 +274,38 @@
                     <div class="stock-container">
                         <div class="stock-grid" id="stock-grid">
                             <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab content 4: Ticket History -->
+                <div class="tab-content" id="tab-history">
+                    <div class="history-container">
+                        <div class="history-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left text-purple"></i> Historial Completo de Consultas</h3>
+                            <button id="btn-refresh-history" class="btn-secondary" title="Actualizar historial de la base de datos">
+                                <i class="fa-solid fa-rotate"></i> Actualizar
+                            </button>
+                        </div>
+                        <div class="history-table-wrapper">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket ID</th>
+                                        <th>Cliente</th>
+                                        <th>Tipo Solicitud</th>
+                                        <th>Equipo/Modelo</th>
+                                        <th>Estado Actual</th>
+                                        <th>Fecha / Hora</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-list">
+                                    <tr>
+                                        <td colspan="7" class="history-empty">Cargando historial...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
