@@ -2,7 +2,7 @@ import os
 import json
 import time
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from src.state import TechServState, ClienteSchema, EquipoSchema, DiagnosticoSchema
 from tests.utils import INVENTORY_PATH
 
