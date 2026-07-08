@@ -59,11 +59,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             
             ui_inventory = {}
             for code, item in inv.items():
-                ui_inventory[code] = {
-                    "nombre": names_map.get(code, code),
-                    "stock": item.get("stock", 0),
-                    "precio": item.get("price", 0.0)
-                }
+                if isinstance(item, dict):
+                    ui_inventory[code] = {
+                        "nombre": names_map.get(code, code),
+                        "stock": item.get("stock", 0),
+                        "precio": item.get("price", 0.0)
+                    }
                 
             self.wfile.write(json.dumps(ui_inventory, ensure_ascii=False).encode("utf-8"))
             return

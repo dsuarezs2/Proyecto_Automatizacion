@@ -342,8 +342,11 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         # Input muy vago (solo saludo, texto corto, sin equipo) → soporte como fallback
         stripped = client_input.strip()
-        if not stripped or len(stripped) < 10:
-            tipo = "soporte"  # Empty/short inputs default to soporte
+        if not stripped or len(stripped) <= 10:
+            if any(w in all_norm for w in ["hola", "buenos", "buenas", "tardes", "noches", "como andas", "saludos"]):
+                tipo = "ambiguo"
+            else:
+                tipo = "soporte"  # Empty/short inputs default to soporte
         else:
             tipo = "ambiguo"
 
@@ -523,7 +526,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     # Si quedó ambiguo pero es un saludo simple, ruido extraño, o keyword vago → soporte
     if tipo == "ambiguo":
         stripped = client_input.strip()
-        is_short_vague = not stripped or len(stripped) < 10  # "Hola", espacios, etc.
+        is_short_vague = not stripped or (len(stripped) <= 10 and not any(w in all_norm for w in ["hola", "buenos", "buenas", "tardes", "noches", "como andas", "saludos"]))  # "Hola", espacios, etc.
         has_vague_repair = norm("reparar") in all_norm and not has_device
         is_garbage_input = all(not c.isalnum() for c in stripped) if stripped else True
         if is_short_vague or is_garbage_input or has_vague_repair:
@@ -834,12 +837,19 @@ def node_reparar_equipo(state: Dict[str, Any]) -> Dict[str, Any]:
     _ensure_telemetry(state)
     _add_transition(state, "reparar_equipo", "start")
 
-    # Chequear si fue rechazado
+    # Chequear si fue rechazado o aprobado
     decision = state.get("_resume_decision", "approved")
     dec_lower = (decision or "").lower()
-    rejected = "reject" in dec_lower or "rechaz" in dec_lower or dec_lower == "no"
+    
+    words = [w.strip("?,.!") for w in dec_lower.split()]
+    negotiation_kws = ["menos", "descuento", "rebaja", "barato", "precio", "presupuesto"]
+    is_negotiation = any(w in dec_lower for w in negotiation_kws) or "?" in dec_lower
+    
+    is_approved = (any(w in words for w in ["si", "ok", "dale", "bueno", "yes", "accept", "acepto", "reparar", "ejecutar"]) 
+                   or any(w in dec_lower for w in ["aprobar", "aprobado", "aceptar", "approved"]))
+    is_rejected = "no" in words or any(w in dec_lower for w in ["reject", "rechaz", "cancelar", "cancelado", "no aprobar", "rejected"])
 
-    if rejected:
+    if is_rejected and not is_negotiation:
         # Liberar stock reservado
         repuestos = state["diagnostico"].get("repuestos_necesarios", [])
         inventory = read_inventory()
@@ -861,7 +871,7 @@ def node_reparar_equipo(state: Dict[str, Any]) -> Dict[str, Any]:
             "canal": state["cliente"].get("canal_preferido", "email")
         }))
         _add_transition(state, "reparar_equipo", "cancelled")
-    else:
+    elif is_approved and not is_negotiation:
         state["estado_ticket"] = "en_reparacion"
         _push_event(state, _create_event("reparacion.iniciada", "tecnico_diagnostico", {
             "ticket_id": state.get("ticket_id", "")
@@ -883,8 +893,21 @@ def node_reparar_equipo(state: Dict[str, Any]) -> Dict[str, Any]:
             "canal": state["cliente"].get("canal_preferido", "email")
         }))
         _add_transition(state, "reparar_equipo", "end")
+    else:
+        # No es aprobación ni rechazo claro (ej. pregunta, comentario, negociación)
+        state["estado_ticket"] = "presupuestado"
+        state["next_step"] = "reparar_equipo"
+        msg = "Para poder proceder, necesitamos que confirme si aprueba o rechaza el presupuesto presentado."
+        state["historial_conversacion"] = state.get("historial_conversacion", []) + \
+            [{"role": "assistant", "content": msg}]
+        _push_event(state, _create_event("cliente.notificado", "notificaciones", {
+            "mensaje_cliente": msg,
+            "canal": state["cliente"].get("canal_preferido", "email")
+        }))
+        _add_transition(state, "reparar_equipo", "pending_clarification")
 
-    state["next_step"] = None
+    if state.get("estado_ticket") != "presupuestado":
+        state["next_step"] = None
     _record_telemetry(state, "reparar_equipo", t0, 120)
     return state
 
