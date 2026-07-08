@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechServ - Dashboard Multiagente Inteligente</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="glass-bg-decor1"></div>
+    <div class="glass-bg-decor2"></div>
+    
+    <div class="app-container">
+        <!-- Main Top Bar -->
+        <header class="top-bar">
+            <div class="logo">
+                <i class="fa-solid fa-microchip icon-logo animate-pulse"></i>
+                <div class="logo-text">
+                    <h1>TechServ <span>Multi-Agent Swarm</span></h1>
+                    <p>Antigravity + Claude Code System</p>
+                </div>
+            </div>
+            
+            <div class="status-indicator">
+                <span class="pulse-green"></span>
+                <span class="status-lbl">Backend Real Enlace: Activo</span>
+            </div>
+        </header>
+
+        <!-- Main Body Grid Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- COLUMN 1: CONTROLS & DEMOS -->
+            <section class="grid-card controls-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-sliders text-cyan"></i> Centro de Control</h2>
+                    <button id="btn-reset" class="btn-secondary" title="Reiniciar base de datos de inventario y sesiones">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset Stock
+                    </button>
+                </div>
+                
+                <!-- Demo Quick Buttons -->
+                <div class="control-group">
+                    <h3>Probar Casos de Prueba (GEMINI.md)</h3>
+                    <div class="demo-buttons">
+                        <button class="btn-demo" data-case="1" title="Laptop HP con pantalla rota">
+                            <span class="badge badge-green">C1</span> Pantalla rota HP
+                        </button>
+                        <button class="btn-demo" data-case="2" title="PC Gamer no enciende, RAM faltante + Mediación">
+                            <span class="badge badge-yellow">C2</span> PC Gamer (Mediación)
+                        </button>
+                        <button class="btn-demo" data-case="3" title="Compra de SSD 1TB con descuento e IA">
+                            <span class="badge badge-blue">C3</span> Comprar SSD 1TB
+                        </button>
+                        <button class="btn-demo" data-case="4" title="Tablet con teclado no responde bluetooth (Soporte remoto)">
+                            <span class="badge badge-purple">C4</span> Soporte Remoto
+                        </button>
+                        <button class="btn-demo" data-case="5" title="Input ambiguo 'mi compu no anda' con slot filling multiturno">
+                            <span class="badge badge-orange">C5</span> Consulta Ambigua
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Manual Client Input form -->
+                <div class="control-group">
+                    <h3>Ingresar Consulta Personalizada</h3>
+                    <form id="simulation-form">
+                        <div class="input-container">
+                            <textarea id="client-query" placeholder="Escribe aquí tu consulta técnica, ej: 'Hola, soy Carlos Pérez, mi tel es 555-1234 y mi notebook HP tiene la batería hinchada...'" required></textarea>
+                        </div>
+                        <button type="submit" id="btn-submit" class="btn-primary">
+                            <span>Enviar Consulta al Swarm</span> <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Interactive turn container -->
+                <div id="interactive-prompt-card" class="interactive-prompt hidden">
+                    <div class="prompt-header">
+                        <span class="pulse-orange"></span>
+                        <h4>Se requiere respuesta del cliente:</h4>
+                    </div>
+                    <p id="interactive-prompt-text"></p>
+                    <div class="prompt-form">
+                        <input type="text" id="interactive-response" placeholder="Escribe los datos solicitados...">
+                        <button id="btn-reply" class="btn-primary-sm"><i class="fa-solid fa-reply"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- COLUMN 2: VISUAL AGENT GRAPH AND CHANNELS -->
+            <section class="grid-card graph-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-diagram-project text-emerald"></i> Grafo de Agentes y Flujo Real</h2>
+                    <span id="active-flow-badge" class="badge badge-inactive">Sin flujo</span>
+                </div>
+                
+                <div class="agent-graph-container">
+                    
+                    <!-- Center Orchestrator Node -->
+                    <div class="graph-node node-orchestrator" id="node-orquestador">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-network-wired"></i>
+                            <span>Orquestador</span>
+                            <small class="node-status">En espera</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Subagents around Orchestrator -->
+                    <div class="graph-node node-subagent" id="node-atencion_cliente" style="top: 8%; left: 15%;">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-headset"></i>
+                            <span>Atención</span>
+                            <small class="node-status">Idle</small>
+                        </div>
+                    </div>
+                    
+                    <div class="graph-node node-subagent" id="node-tecnico_diagnostico" style="top: 8%; right: 15%;">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                            <span>Técnico</span>
+                            <small class="node-status">Idle</small>
+                        </div>
+                    </div>
+                    
+                    <div class="graph-node node-subagent" id="node-almacen" style="top: 50%; right: 5%;">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                            <span>Almacén</span>
+                            <small class="node-status">Idle</small>
+                        </div>
+                    </div>
+                    
+                    <div class="graph-node node-subagent" id="node-ventas" style="top: 85%; right: 18%;">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-wallet"></i>
+                            <span>Ventas</span>
+                            <small class="node-status">Idle</small>
+                        </div>
+                    </div>
+                    
+                    <div class="graph-node node-subagent" id="node-notificaciones" style="top: 85%; left: 18%;">
+                        <div class="node-inner">
+                            <i class="fa-solid fa-bell"></i>
+                            <span>Avisos</span>
+                            <small class="node-status">Idle</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Connection SVG Lines with glowing neon paths -->
+                    <svg class="graph-svg">
+                        <line class="edge-line" id="edge-orquestador-atencion_cliente" x1="50%" y1="50%" x2="25%" y2="22%"></line>
+                        <line class="edge-line" id="edge-orquestador-tecnico_diagnostico" x1="50%" y1="50%" x2="75%" y2="22%"></line>
+                        <line class="edge-line" id="edge-orquestador-almacen" x1="50%" y1="50%" x2="88%" y2="58%"></line>
+                        <line class="edge-line" id="edge-orquestador-ventas" x1="50%" y1="50%" x2="75%" y2="82%"></line>
+                        <line class="edge-line" id="edge-orquestador-notificaciones" x1="50%" y1="50%" x2="25%" y2="82%"></line>
+                        
+                        <!-- Inter-agent parallel Swarm edge -->
+                        <path class="edge-line-curved" id="edge-tecnico-almacen" d="M 520, 110 Q 640, 180 625, 290" fill="none"></path>
+                    </svg>
+                    
+                    <!-- Parallel Swarm glow beam -->
+                    <div id="swarm-parallel-beam" class="swarm-beam hidden"></div>
+                </div>
+            </section>
+            
+            <!-- COLUMN 3: VIRTUAL DEVICE NOTIFICATION MONITOR -->
+            <section class="grid-card client-feed-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-mobile-screen-button text-purple"></i> Notificación al Cliente</h2>
+                    <span id="client-notification-channel" class="badge badge-purple">N/A</span>
+                </div>
+                
+                <!-- Simulated Phone frame -->
+                <div class="device-frame">
+                    <div class="device-screen">
+                        <div class="device-header">
+                            <div class="device-camera"></div>
+                            <span class="device-time">09:00</span>
+                        </div>
+                        <div class="device-app-bar" id="device-app-bar">
+                            <i class="fa-solid fa-user-circle"></i>
+                            <div class="chat-contact-info">
+                                <span class="contact-name" id="notify-client-name">Cliente</span>
+                                <span class="contact-status">En línea</span>
+                            </div>
+                        </div>
+                        <div class="chat-message-area" id="chat-messages">
+                            <div class="chat-system-msg">No hay notificaciones activas</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ROW 2: TABS WITH SHARED MEMORY STATE & CONSOLE EVENTS -->
+            <section class="grid-card logs-card">
+                <div class="tabs-header">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="tab-memory">
+                            <i class="fa-solid fa-database text-amber"></i> Memoria Compartida (Shared Memory)
+                        </button>
+                        <button class="tab-btn" data-tab="tab-console">
+                            <i class="fa-solid fa-terminal text-cyan"></i> Event Bus MCP JSON Schema
+                        </button>
+                        <button class="tab-btn" data-tab="tab-stock">
+                            <i class="fa-solid fa-warehouse text-emerald"></i> Inventario Real de Repuestos
+                        </button>
+                    </div>
+                    <span class="ticket-id-tag">Ticket Activo: <strong id="active-ticket-lbl">Ninguno</strong></span>
+                </div>
+
+                <!-- Tab content 1: Shared Memory -->
+                <div class="tab-content active" id="tab-memory">
+                    <div class="memory-viewer">
+                        <div class="mem-item">
+                            <span class="mem-key">ticket_id</span>
+                            <span class="mem-val" id="mem-ticket-id">"N/A"</span>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">cliente</span>
+                            <pre class="mem-val-block" id="mem-cliente">{}</pre>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">tipo_solicitud</span>
+                            <span class="mem-val" id="mem-tipo-solicitud">"N/A"</span>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">equipo</span>
+                            <pre class="mem-val-block" id="mem-equipo">{}</pre>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">diagnostico</span>
+                            <pre class="mem-val-block" id="mem-diagnostico">{}</pre>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">inventario</span>
+                            <pre class="mem-val-block" id="mem-inventario">{}</pre>
+                        </div>
+                        <div class="mem-item">
+                            <span class="mem-key">estado_ticket</span>
+                            <span class="mem-val status-badge-inline" id="mem-estado-ticket">"N/A"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab content 2: Event Bus Monospace JSON Terminal -->
+                <div class="tab-content" id="tab-console">
+                    <div class="terminal-container">
+                        <div class="terminal-header">
+                            <span class="term-dot dot-red"></span>
+                            <span class="term-dot dot-yellow"></span>
+                            <span class="term-dot dot-green"></span>
+                            <span class="term-title">mcp_events_stream.log</span>
+                        </div>
+                        <div class="terminal-body" id="mcp-events-terminal">
+                            <div class="term-line comment"># Esperando eventos del bus multiagente...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab content 3: Real inventory list -->
+                <div class="tab-content" id="tab-stock">
+                    <div class="stock-container">
+                        <div class="stock-grid" id="stock-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ROW 3: TELEMETRY AND SPEEDOMETERS -->
+            <section class="grid-card telemetry-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-chart-line text-blue"></i> Panel de Telemetría Global de Agentes</h2>
+                </div>
+                <div class="telemetry-grid">
+                    
+                    <div class="tele-item">
+                        <i class="fa-solid fa-gauge-high icon-tele text-cyan"></i>
+                        <div class="tele-text">
+                            <span class="tele-lbl">Latencia de Ejecución</span>
+                            <h3 id="tele-latency">0 <small>ms</small></h3>
+                        </div>
+                    </div>
+                    
+                    <div class="tele-item">
+                        <i class="fa-solid fa-coins icon-tele text-yellow"></i>
+                        <div class="tele-text">
+                            <span class="tele-lbl">Consumo de Tokens</span>
+                            <h3 id="tele-tokens">0 <small>tokens</small></h3>
+                        </div>
+                    </div>
+                    
+                    <div class="tele-item">
+                        <i class="fa-solid fa-circle-check icon-tele text-emerald"></i>
+                        <div class="tele-text">
+                            <span class="tele-lbl">Tasa de Éxito</span>
+                            <h3 id="tele-success">100.0%</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="tele-item">
+                        <i class="fa-solid fa-microchip icon-tele text-purple"></i>
+                        <div class="tele-text">
+                            <span class="tele-lbl">Estado de Swarm</span>
+                            <h3 id="tele-swarm-status"><span class="badge badge-inactive">INACTIVO</span></h3>
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Script imports -->
+    <script src="app.js"></script>
+</body>
+</html>

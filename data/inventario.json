@@ -1,0 +1,38 @@
+{
+  "Pantalla_HP": {
+    "price": 120.0,
+    "stock": 3
+  },
+  "RAM_8GB": {
+    "price": 45.0,
+    "stock": 0
+  },
+  "RAM_16GB": {
+    "price": 80.0,
+    "stock": 5
+  },
+  "Fuente_Poder": {
+    "price": 90.0,
+    "stock": 2
+  },
+  "SSD_1TB": {
+    "price": 110.0,
+    "stock": 5
+  },
+  "Mouse_Inalambrico": {
+    "price": 25.0,
+    "stock": 10
+  },
+  "Teclado_Bluetooth": {
+    "price": 45.0,
+    "stock": 5
+  },
+  "Pasta_Termica": {
+    "price": 15.0,
+    "stock": 20
+  },
+  "Ventilador_CPU": {
+    "price": 20.0,
+    "stock": 15
+  }
+}

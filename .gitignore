@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+data/checkpoints.db
+data/faiss_store/
+.agents/
