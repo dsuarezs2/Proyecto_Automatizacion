@@ -523,7 +523,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     # Si quedó ambiguo pero es un saludo simple, ruido extraño, o keyword vago → soporte
     if tipo == "ambiguo":
         stripped = client_input.strip()
-        is_short_vague = not stripped or len(stripped) <= 10  # "Hola", espacios, etc.
+        is_short_vague = not stripped or len(stripped) < 10  # "Hola", espacios, etc.
         has_vague_repair = norm("reparar") in all_norm and not has_device
         is_garbage_input = all(not c.isalnum() for c in stripped) if stripped else True
         if is_short_vague or is_garbage_input or has_vague_repair:
