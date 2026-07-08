@@ -296,7 +296,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     history = state["historial_conversacion"]
 
     # Combinar texto actual + historial para NLP completo
-    all_msgs = [client_input] + [m.get("content", "") for m in history[:-1]]
+    all_msgs = [client_input] + [m.get("content", "") for m in history[:-1] if m.get("role") == "user"]
     all_text = " ".join(all_msgs).lower()
     # Versión normalizada sin acentos para matching más robusto
     import unicodedata
@@ -342,11 +342,8 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         # Input muy vago (solo saludo, texto corto, sin equipo) → soporte como fallback
         stripped = client_input.strip()
-        if not stripped or len(stripped) <= 10:
-            if any(w in all_norm for w in ["hola", "buenos", "buenas", "tardes", "noches", "como andas", "saludos"]):
-                tipo = "ambiguo"
-            else:
-                tipo = "soporte"  # Empty/short inputs default to soporte
+        if not stripped or len(stripped) < 10:
+            tipo = "soporte"  # Empty/short inputs default to soporte
         else:
             tipo = "ambiguo"
 
@@ -526,7 +523,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     # Si quedó ambiguo pero es un saludo simple, ruido extraño, o keyword vago → soporte
     if tipo == "ambiguo":
         stripped = client_input.strip()
-        is_short_vague = not stripped or (len(stripped) <= 10 and not any(w in all_norm for w in ["hola", "buenos", "buenas", "tardes", "noches", "como andas", "saludos"]))  # "Hola", espacios, etc.
+        is_short_vague = not stripped or len(stripped) < 10  # "Hola", espacios, etc.
         has_vague_repair = norm("reparar") in all_norm and not has_device
         is_garbage_input = all(not c.isalnum() for c in stripped) if stripped else True
         if is_short_vague or is_garbage_input or has_vague_repair:
