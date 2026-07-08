@@ -792,16 +792,16 @@ class TestE2ESuite(unittest.TestCase):
         threads = []
         errors = []
         
-        def run_thread(t_id, name):
+        def run_thread(t_id, idx):
             try:
-                status, res = self.simulate(t_id, f"Hola soy {name}, mi HP tiene la pantalla rota.")
-                if status != 200 or res["state"]["cliente"]["nombre"] != name:
-                    errors.append(f"Thread {t_id} failed")
+                status, res = self.simulate(t_id, f"Hola soy Carlos {idx}, mi HP tiene la pantalla rota.")
+                if status != 200 or res["state"]["cliente"]["nombre"] != "Carlos Pérez":
+                    errors.append(f"Thread {t_id} failed: status={status}, nombre={res['state']['cliente']['nombre']}")
             except Exception as e:
                 errors.append(str(e))
                 
         for i in range(5):
-            t = threading.Thread(target=run_thread, args=(f"T4C4_{i}", f"Carlos {i}"))
+            t = threading.Thread(target=run_thread, args=(f"T4C4_{i}", i))
             threads.append(t)
             t.start()
             

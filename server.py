@@ -257,7 +257,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "diagnostico": state["diagnostico"],
                 "inventario": state.get("inventario_status", {}),
                 "estado_ticket": state["estado_ticket"],
-                "historial_conversacion": state["historial_conversacion"]
+                "historial_conversacion": state["historial_conversacion"],
+                "next_step": state.get("next_step"),
+                "telemetry": state.get("telemetry"),
+                "node_transitions": state.get("node_transitions", [])
             }
             
             response_payload = {
