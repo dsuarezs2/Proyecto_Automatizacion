@@ -79,7 +79,7 @@ def reset_inventory():
                 # Try to exclusively create the lock file
                 fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 break
-            except FileExistsError:
+            except (FileExistsError, PermissionError):
                 if time.time() - start_time > 5.0:
                     raise TimeoutError("Could not acquire lock on inventory file")
                 time.sleep(0.05)

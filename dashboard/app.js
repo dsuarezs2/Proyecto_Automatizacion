@@ -357,22 +357,34 @@ async function playTimelineAnimation(simulationData) {
     const successRate = telemetry.success_rate * 100;
     document.getElementById("tele-success").innerText = `${successRate.toFixed(1)}%`;
     
-    if (success) {
+    if (state.next_step === "reparar_equipo") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> ESPERANDO APROBACIÓN</span>`;
+        
+        // Buscar el evento de notificación del presupuesto
+        const budgetNotif = events.find(e => e.evento === "cliente.notificado" && e.payload && e.payload.mensaje_cliente && e.payload.mensaje_cliente.includes("¿Aprueba"));
+        const promptText = budgetNotif ? budgetNotif.payload.mensaje_cliente : "¿Aprueba el presupuesto?";
+        
+        document.getElementById("interactive-prompt-text").innerText = promptText;
+        document.getElementById("interactive-prompt-card").classList.remove("hidden");
+        document.getElementById("interactive-response").focus();
+    } else if (state.next_step === "pedir_aclaracion") {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> INCOMPLETO</span>`;
+        
+        // Buscar el evento de aclaración solicitada
+        const aclEvent = events.find(e => e.evento === "ticket.aclaracion_solicitada");
+        const promptText = aclEvent ? aclEvent.payload.respuesta_cliente : "Se requiere aclaración del cliente.";
+        
+        document.getElementById("interactive-prompt-text").innerText = promptText;
+        document.getElementById("interactive-prompt-card").classList.remove("hidden");
+        document.getElementById("interactive-response").focus();
+    } else if (success) {
         swarmStatusBadge.innerHTML = `<span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> RESUELTO</span>`;
-    } else {
-        // Check if actually slot filling ambiguous state
-        const csState = events.find(e => e.agente_emisor === "atencion_cliente" && e.payload.status === "ambiguous");
-        if (csState) {
-            swarmStatusBadge.innerHTML = `<span class="badge badge-yellow"><i class="fa-solid fa-user-pen"></i> INCOMPLETO</span>`;
-            
-            // Show interactive Slot Filling card!
-            const promptText = csState.payload.respuesta_cliente;
-            document.getElementById("interactive-prompt-text").innerText = promptText;
-            document.getElementById("interactive-prompt-card").classList.remove("hidden");
-            document.getElementById("interactive-response").focus();
-        } else {
-            swarmStatusBadge.innerHTML = `<span class="badge badge-orange"><i class="fa-solid fa-circle-xmark"></i> FALLADO</span>`;
+        // Si ya finalizó, limpiamos el activeTicketId para nuevas consultas
+        if (state.estado_ticket === "entregado" || state.estado_ticket === "venta_procesada" || state.estado_ticket === "resuelto_remoto" || state.estado_ticket === "cancelado") {
+            activeTicketId = null;
         }
+    } else {
+        swarmStatusBadge.innerHTML = `<span class="badge badge-orange"><i class="fa-solid fa-circle-xmark"></i> FALLADO</span>`;
     }
     
     // Re-enable form

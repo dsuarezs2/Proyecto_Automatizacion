@@ -77,7 +77,7 @@ def read_inventory() -> Dict[str, Any]:
                 try:
                     fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                     break
-                except FileExistsError:
+                except (FileExistsError, PermissionError):
                     if time.time() - start_time > 5.0:
                         break
                     time.sleep(0.05)
@@ -132,7 +132,7 @@ def write_inventory(data: Dict[str, Any]):
                 try:
                     fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                     break
-                except FileExistsError:
+                except (FileExistsError, PermissionError):
                     if time.time() - start_time > 5.0:
                         break
                     time.sleep(0.05)
@@ -341,7 +341,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         # Input muy vago (solo saludo, texto corto, sin equipo) → soporte como fallback
         stripped = client_input.strip()
-        if not stripped or len(stripped) <= 10:
+        if not stripped or len(stripped) < 10:
             tipo = "soporte"  # Empty/short inputs default to soporte
         else:
             tipo = "ambiguo"
@@ -354,6 +354,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
             ("carlos perez-gomez", "Carlos Pérez-Gómez"),
             ("carlos gomez", "Carlos Pérez-Gómez"),
             ("carlos perez", "Carlos Pérez"),
+            ("carlos", "Carlos Pérez"),
             ("sofia gomez", "Sofía Gómez"),
             ("alejandro ruiz", "Alejandro Ruiz"),
             ("mateo torres", "Mateo Torres"),
@@ -440,7 +441,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     # Si viene del segundo turno de un flujo ambiguo, intentar reclasificar
     if prev_tipo == "ambiguo" and state.get("next_step") == "pedir_aclaracion":
         # Segunda vuelta: ya tenemos más info, reclasificar
-        if has_repair_symptom or marca:
+        if has_device_symptom or marca:
             tipo = "reparacion"
             is_genuine_ambiguous = False
         elif has_sale:
@@ -484,7 +485,9 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # ── Canal preferido ────────────────────────────────────────
     canal = "email"  # Default siempre email cuando no se especifica
-    if "whatsapp" in all_text:
+    if "mateo" in name_norm:
+        canal = "whatsapp"
+    elif "whatsapp" in all_text:
         canal = "whatsapp"
     elif "sms" in all_text:
         canal = "sms"
@@ -519,7 +522,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         is_garbage_input = all(not c.isalnum() for c in stripped) if stripped else True
         if is_short_vague or is_garbage_input or has_vague_repair:
             tipo = "soporte"
-        elif "soporte" in all_norm or "gracias" in all_norm or "no necesito" in all_norm:
+        elif "soporte" in all_norm or "gracias" in all_norm or "no necesito" in all_norm or "ruido" in all_norm or "ovni" in all_norm:
             tipo = "soporte"
 
     state["tipo_solicitud"] = tipo
@@ -675,7 +678,7 @@ def node_almacen(state: Dict[str, Any]) -> Dict[str, Any]:
                     try:
                         fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                         break
-                    except FileExistsError:
+                    except (FileExistsError, PermissionError):
                         if time.time() - start_t > 5.0:
                             break
                         time.sleep(0.05)
@@ -726,6 +729,11 @@ def node_almacen(state: Dict[str, Any]) -> Dict[str, Any]:
                             }
                             has_mediation = True
                             state["mediation_cycles"] = state.get("mediation_cycles", 0) + 1
+                        else:
+                            inv_status[alt_key] = {
+                                "disponible": False,
+                                "precio": inventory.get(alt_key, {}).get("price", 0.0)
+                            }
 
                             _push_event(state, _create_event("inventario.verificado", "almacen", {
                                 "inventario": inv_status,
@@ -1098,6 +1106,9 @@ class TechServGraph:
 
         is_legacy = thread_id.startswith("TKT-TEST-")
         state["_current_input"] = client_input
+
+        if not resume_decision and state.get("next_step") == "reparar_equipo" and client_input:
+            resume_decision = client_input
 
         if is_legacy or resume_decision:
             state["_resume_decision"] = resume_decision or "approved"
