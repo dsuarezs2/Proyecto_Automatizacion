@@ -4,3 +4,23 @@ __pycache__/
 data/checkpoints.db
 data/faiss_store/
 .agents/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+
+# IDEs/Editors
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
