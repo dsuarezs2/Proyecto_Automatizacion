@@ -223,10 +223,10 @@ def create_technical_tools(vector_store: Any, inventory_db_path: str) -> List[An
         complexity = complexity.lower()
         
         estimates = {
-            "pantalla_reemplazo": {"costo_mano_obra": 50.0, "tiempo_estimado_horas": 2, "description": "Reemplazo de panel de pantalla LED"},
-            "fuente_poder_reemplazo": {"costo_mano_obra": 50.0, "tiempo_estimado_horas": 3, "description": "Reemplazo de Fuente de Poder y RAM DDR4"},
-            "sobrecalentamiento": {"costo_mano_obra": 40.0, "tiempo_estimado_horas": 1, "description": "Limpieza interna, reemplazo de pasta térmica y ventilador de CPU"},
-            "soporte_remoto": {"costo_mano_obra": 0.0, "tiempo_estimado_horas": 1, "description": "Soporte técnico remoto sin cambio de hardware"},
+            "pantalla_reemplazo": {"costo_mano_obra": 50.0, "tiempo_estimado_horas": 2, "description": "Pantalla rota"},
+            "fuente_poder_reemplazo": {"costo_mano_obra": 50.0, "tiempo_estimado_horas": 3, "description": "No arranca (Falla en Fuente y RAM)"},
+            "sobrecalentamiento": {"costo_mano_obra": 40.0, "tiempo_estimado_horas": 1, "description": "Sobrecalentamiento"},
+            "soporte_remoto": {"costo_mano_obra": 0.0, "tiempo_estimado_horas": 1, "description": "Problema de vinculación bluetooth"},
             "mantenimiento": {"costo_mano_obra": 40.0, "tiempo_estimado_horas": 1, "description": "Mantenimiento preventivo general"}
         }
         

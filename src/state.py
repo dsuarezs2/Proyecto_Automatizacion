@@ -18,9 +18,10 @@ class DiagnosticoSchema(BaseModel):
     costo_mano_obra: float = Field(default=0.0)
     tiempo_estimado_horas: int = Field(default=0)
 
-# Estado oficial del Grafo
+# Estado oficial del Grafo LangGraph
 class TechServState(TypedDict):
     ticket_id: str
+    thread_id: Optional[str]
     cliente: ClienteSchema
     equipo: EquipoSchema
     tipo_solicitud: str  # "venta", "reparacion", "soporte", "ambiguo"
@@ -30,4 +31,8 @@ class TechServState(TypedDict):
     historial_conversacion: List[Dict[str, str]]
     next_step: Optional[str]
     telemetry: Optional[Dict[str, Any]]
+    token_usage: Optional[Dict[str, int]]   # tokens reales por nodo (de Gemini API)
+    mediation_cycles: Optional[int]          # ciclos de mediación de stock
+    node_transitions: Optional[List[Dict[str, str]]]  # trazas de transiciones de nodo
+    mcp_events: Optional[List[Dict[str, Any]]]  # eventos del bus MCP
 

@@ -11,7 +11,17 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from tests.utils import reset_inventory, INVENTORY_PATH
+# Cargar variables de entorno (LangSmith, Gemini, etc.)
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(current_dir, ".env")
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
+from tests.utils import reset_inventory
+from src.config import INVENTORY_PATH
 from src.graph import TechServGraph, read_inventory
 
 # In-memory session store to preserve shared memory state between interactive turns
@@ -116,7 +126,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "keep-alive")
+            self.send_header("Connection", "close")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             
@@ -125,6 +135,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(f"data: {data_payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
                 time.sleep(0.01)
+            self.close_connection = True
             return
             
         # 2. Serve static files
@@ -167,12 +178,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if reset_stock:
                 reset_inventory()
                 SESSIONS.clear()
-                conn = sqlite3.connect(checkpointer.db_path)
-                try:
-                    conn.execute("DROP TABLE IF EXISTS checkpoints")
-                finally:
-                    conn.close()
-                checkpointer.init_db()
+                checkpointer.reset_db()
                 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -189,28 +195,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 state = {
                     "thread_id": ticket_id,
                     "ticket_id": ticket_id,
-                    "cliente": {
-                        "nombre": "",
-                        "contacto": "",
-                        "canal_preferido": "email"
-                    },
-                    "equipo": {
-                        "marca_modelo": "",
-                        "descripcion": "",
-                        "sintomas": []
-                    },
+                    "cliente": {"nombre": "", "contacto": "", "canal_preferido": "email"},
+                    "equipo": {"marca_modelo": "", "descripcion": "", "sintomas": []},
                     "tipo_solicitud": "",
                     "diagnostico": {
                         "falla_confirmada": "",
                         "repuestos_necesarios": [],
                         "costo_mano_obra": 0.0,
-                        "tiempo_estimado_horas": 0
+                        "tiempo_estimado_horas": 0,
                     },
                     "inventario_status": {},
                     "estado_ticket": "recibido",
                     "historial_conversacion": [],
                     "next_step": None,
-                    "telemetry": None
+                    "telemetry": {"latencies": {}, "tokens": {}},
+                    "token_usage": {},
+                    "mediation_cycles": 0,
+                    "node_transitions": [],
+                    "mcp_events": [],
                 }
                 events = []
                 
@@ -242,11 +244,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             finally:
                 conn.close()
             
+            # Calcular tokens totales reales desde token_usage
+            real_tokens = sum(state.get("token_usage", {}).values())
             telemetry_summary = {
                 "total_tickets": total_tickets,
                 "successful_tickets": successful_tickets,
                 "success_rate": round(successful_tickets / total_tickets, 2) if total_tickets > 0 else 1.0,
-                "total_tokens": 120 * total_tickets
+                "total_tokens": real_tokens,
+                "latencies": state.get("telemetry", {}).get("latencies", {}),
+                "mediation_cycles": state.get("mediation_cycles", 0),
             }
             
             state_for_dashboard = {
@@ -309,6 +315,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             
             state, events = res
             
+            if not state.get("next_step"):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "state": state, "events": events}, ensure_ascii=False).encode("utf-8"))
+                return
+
             graph = TechServGraph()
             state, new_events, success = graph.execute(state, client_input=decision, resume_decision=decision)
             
@@ -338,9 +352,13 @@ def run(server_class=HTTPServer, handler_class=DashboardHandler, port=8000):
     mimetypes.init()
     server_address = ("", port)
     httpd = server_class(server_address, handler_class)
+    ls_active = bool(os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY"))
     print("\033[1;92m" + "="*80)
-    print(f" SERVIDOR TECHSERV (LANGGRAPH STUB) INICIADO EN: http://localhost:{port}")
+    print(f" SERVIDOR TECHSERV (LANGGRAPH + LANGSMITH) INICIADO EN: http://localhost:{port}")
     print(" Abre esta URL en tu navegador para ver la interfaz gráfica interactiva.")
+    if ls_active:
+        project = os.getenv("LANGSMITH_PROJECT", "TechServ-LangGraph")
+        print(f" LangSmith activo — Traces en: https://smith.langchain.com (proyecto: {project})")
     print("="*80 + "\033[0m")
     
     try:

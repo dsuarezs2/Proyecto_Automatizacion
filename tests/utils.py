@@ -41,9 +41,8 @@ BASELINE_INVENTORY = {
   }
 }
 
-INVENTORY_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "data", "inventario.json")
-)
+from src.config import INVENTORY_PATH
+
 
 def reset_inventory():
     """
@@ -55,11 +54,16 @@ def reset_inventory():
     # Try importing fcntl for Linux file locking
     try:
         import fcntl
-        with open(INVENTORY_PATH, "w") as f:
+        if not os.path.exists(INVENTORY_PATH):
+            with open(INVENTORY_PATH, "w", encoding="utf-8") as f:
+                json.dump({}, f)
+        with open(INVENTORY_PATH, "r+", encoding="utf-8") as f:
             # Acquire an exclusive lock on the file descriptor
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
+                f.seek(0)
                 json.dump(BASELINE_INVENTORY, f, indent=2)
+                f.truncate()
                 f.flush()
                 os.fsync(f.fileno())
             finally:
