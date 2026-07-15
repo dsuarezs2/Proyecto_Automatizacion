@@ -293,14 +293,22 @@ def create_technical_tools(vector_store: Any, inventory_db_path: str) -> List[An
                             k_lower = k.lower()
                             v_name = v.get("nombre", "").lower() if isinstance(v, dict) else ""
                             if (k_lower in content or (v_name and v_name in content)) and k_lower != name_lower and k_lower != code_lower:
-                                item = find_in_inventory(inventory, k)
-                                if item and item["key"] not in [a["nombre"] for a in alternatives]:
-                                    alternatives.append({
-                                        "nombre": item["key"],
-                                        "codigo": item.get("codigo", k),
-                                        "precio_unitario": item["precio"],
-                                        "compatibility_notes": f"Compatible replacement suggested by manual: {doc.page_content[:100]}..."
-                                    })
+                                # Validar que pertenezcan a la misma categoría para evitar cruces extraños (ej. sugerir RAM por Fuente)
+                                is_same_category = False
+                                for cat_kws in [["ram", "memoria", "ddr"], ["fuente", "psu", "power"], ["pantalla", "screen", "display"], ["ssd", "hdd", "disco", "drive"], ["mouse", "raton"], ["teclado", "keyboard"], ["ventilador", "fan", "cooling", "disipador"]]:
+                                    if any(w in name_lower or w in code_lower for w in cat_kws) and any(w in k_lower or w in v_name for w in cat_kws):
+                                        is_same_category = True
+                                        break
+                                
+                                if is_same_category:
+                                    item = find_in_inventory(inventory, k)
+                                    if item and item["key"] not in [a["nombre"] for a in alternatives]:
+                                        alternatives.append({
+                                            "nombre": item["key"],
+                                            "codigo": item.get("codigo", k),
+                                            "precio_unitario": item["precio"],
+                                            "compatibility_notes": f"Compatible replacement suggested by manual: {doc.page_content[:100]}..."
+                                        })
                 except Exception as ve:
                     print(f"Vector search fallback warning: {ve}")
                     

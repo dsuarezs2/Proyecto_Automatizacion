@@ -316,6 +316,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "success": success,
                 "state": state_for_dashboard,
                 "events": events,
+                "new_events": new_events,
                 "memory_history": [],
                 "telemetry": telemetry_summary,
                 "server_duration_ms": elapsed_time_ms
@@ -377,7 +378,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
-            self.wfile.write(json.dumps({"success": success, "state": state, "events": events}, ensure_ascii=False).encode("utf-8"))
+            self.wfile.write(json.dumps({"success": success, "state": state, "events": events, "new_events": new_events}, ensure_ascii=False).encode("utf-8"))
             return
             
         self.send_response(404)

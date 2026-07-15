@@ -305,6 +305,49 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     all_norm = norm(all_text)
     input_norm = norm(client_input)
 
+    # ── Detectar si es ÚNICAMENTE un cambio de canal ────────────
+    input_clean = input_norm.strip()
+    channel_kws = ["wsp", "whatsapp", "wasap", "whats", "wa", "sms", "email", "correo", "mail"]
+    is_channel_word = any(input_clean == w for w in channel_kws)
+    is_channel_change_phrase = any(p in input_clean for p in ["cambiar a", "preferiria", "prefiero", "usar", "avisar por"]) and \
+                               any(w in input_clean for w in channel_kws)
+                               
+    has_other_info = any(w in input_clean for w in [
+        "pantalla", "screen", "broken", "rota", "quebrada", "crack",
+        "calienta", "sobrecalienta", "caliente", "apaga", "no arranca",
+        "no enciende", "pitidos", "gamer", "nvidia", "arranca", "inspiron", "pavilion",
+        "prende", "no prende", "corto", "cortocircuito", "quemada", "quemo", "negro", "negra",
+        "ssd", "1tb", "compra", "comprar", "adquirir", "vender", "precio",
+        "tablet", "teclado", "bluetooth", "vincula", "vinculacion", "configurar", "soporte",
+        "hp", "dell", "lenovo"
+    ])
+
+    if (is_channel_word or is_channel_change_phrase) and not has_other_info:
+        new_canal = "email"
+        if any(w in input_clean for w in ["whatsapp", "wsp", "wasap", "whats", "wa"]):
+            new_canal = "whatsapp"
+        elif "sms" in input_clean:
+            new_canal = "sms"
+        elif any(w in input_clean for w in ["email", "correo", "mail", "@"]):
+            new_canal = "email"
+            
+        if not state.get("cliente"):
+            state["cliente"] = {"nombre": "Cliente Genérico", "contacto": "contacto@gmail.com", "canal_preferido": "email"}
+        state["cliente"]["canal_preferido"] = new_canal
+        
+        _push_event(state, _create_event("cliente.notificado", "notificaciones", {
+            "mensaje_cliente": f"Canal de comunicación actualizado a {new_canal}.",
+            "canal": new_canal
+        }))
+        
+        # Mantener tipo_solicitud anterior si existe, o forzar ambiguo
+        if not state.get("tipo_solicitud") or state.get("tipo_solicitud") not in ["reparacion", "venta", "soporte"]:
+            state["tipo_solicitud"] = "ambiguo"
+            
+        _record_telemetry(state, "atencion_cliente", t0, 50)
+        _add_transition(state, "atencion_cliente", "end")
+        return state
+
     # ── Clasificación ──────────────────────────────────────────
     # Palabras clave de reparación (español e inglés, con y sin acentos)
     # IMPORTANTE: 'reparar' sin equipo concreto NO se cuenta como reparación → soporte
@@ -354,33 +397,55 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         # Nombres conocidos del sistema (normalizado)
         known = [
             ("carlos perez-gomez", "Carlos Pérez-Gómez"),
-            ("carlos gomez", "Carlos Pérez-Gómez"),
+            ("carlos gomez", "Carlos Gómez"),
             ("carlos perez", "Carlos Pérez"),
             ("carlos", "Carlos Pérez"),
             ("sofia gomez", "Sofía Gómez"),
             ("alejandro ruiz", "Alejandro Ruiz"),
             ("mateo torres", "Mateo Torres"),
         ]
+        
+        # 1. Intentar patrón "soy/llamo X" en el texto actual primero
+        m = re.search(r'\b(?:soy|nombre es|llamo)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\-]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\-]+)?)', text, re.IGNORECASE)
+        if m:
+            extracted = m.group(1).strip()
+            ext_norm = norm(extracted)
+            for n_norm, n_display in known:
+                if n_norm == ext_norm:
+                    return n_display
+            if "lucia" in ext_norm:
+                return "Lucía"
+            return extracted
+
+        # 2. Intentar buscar en la lista de nombres conocidos en el texto actual
         for n_norm, n_display in known:
             if n_norm in t:
                 return n_display
         if "lucia" in t or "lucía" in t:
             return "Lucía"
-        # Extraer patrón "soy/llamo X"
-        m = re.search(r'\b(?:soy|nombre es|llamo)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\-]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\-]+)?)', text, re.IGNORECASE)
-        if m:
-            return m.group(1).strip()
-        # Buscar en historial
+
+        # 3. Buscar en el historial
         for msg in reversed(hist):
-            c = norm(msg.get("content", ""))
+            content = msg.get("content", "")
+            c = norm(content)
+            
+            m2 = re.search(r'\b(?:soy|nombre es|llamo)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\-]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\-]+)?)', content, re.IGNORECASE)
+            if m2:
+                extracted2 = m2.group(1).strip()
+                ext_norm2 = norm(extracted2)
+                for n_norm, n_display in known:
+                    if n_norm == ext_norm2:
+                        return n_display
+                if "lucia" in ext_norm2:
+                    return "Lucía"
+                return extracted2
+
             for n_norm, n_display in known:
                 if n_norm in c:
                     return n_display
             if "lucia" in c:
                 return "Lucía"
-            m2 = re.search(r'\b(?:soy|nombre es|llamo)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\-]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ\-]+)?)', msg.get("content", ""), re.IGNORECASE)
-            if m2:
-                return m2.group(1).strip()
+                
         return "Cliente Genérico"
 
     # ── Extracción de equipo ───────────────────────────────────
@@ -492,17 +557,16 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # ── Canal preferido ────────────────────────────────────────
     canal = "email"  # Default siempre email cuando no se especifica
-    if "mateo" in name_norm:
-        canal = "whatsapp"
-    elif "whatsapp" in all_text:
+    if any(w in all_text for w in ["whatsapp", "wsp", "wasap", "whats", "wa"]):
         canal = "whatsapp"
     elif "sms" in all_text:
         canal = "sms"
-    elif "email" in all_text or "correo" in all_text or "@" in all_text:
+    elif any(w in all_text for w in ["email", "correo", "mail", "@"]):
         canal = "email"
+    elif "mateo" in name_norm:
+        canal = "whatsapp"
     elif "fax" in all_text or "telegrama" in all_text or "senal" in all_norm or "humo" in all_norm:
         canal = "email"  # Fallback para canales inválidos/no reconocidos
-    # Nota: NO asignamos canal por nombre — siempre email por defecto si no se especifica
 
     # Preservar canal previo si no hay nuevo explícito
     if canal == "email" and prev_client.get("canal_preferido") and prev_client["canal_preferido"] != "email":
@@ -838,12 +902,26 @@ def node_reparar_equipo(state: Dict[str, Any]) -> Dict[str, Any]:
     # Chequear si fue rechazado o aprobado
     decision = state.get("_resume_decision", "approved")
     dec_lower = (decision or "").lower()
+
+    # Detectar cambio de canal si la decisión contiene keywords de canal
+    new_canal = None
+    if any(w in dec_lower for w in ["whatsapp", "wsp", "wasap", "whats", "wa"]):
+        new_canal = "whatsapp"
+    elif "sms" in dec_lower:
+        new_canal = "sms"
+    elif any(w in dec_lower for w in ["email", "correo", "mail", "@"]):
+        new_canal = "email"
+
+    if new_canal:
+        if not state.get("cliente"):
+            state["cliente"] = {"nombre": "Cliente Genérico", "contacto": "contacto@gmail.com", "canal_preferido": "email"}
+        state["cliente"]["canal_preferido"] = new_canal
     
     words = [w.strip("?,.!") for w in dec_lower.split()]
     negotiation_kws = ["menos", "descuento", "rebaja", "barato", "precio", "presupuesto"]
     is_negotiation = any(w in dec_lower for w in negotiation_kws) or "?" in dec_lower
     
-    is_approved = (any(w in words for w in ["si", "ok", "dale", "bueno", "yes", "accept", "acepto", "reparar", "ejecutar"]) 
+    is_approved = (any(w in words for w in ["si", "sí", "ok", "dale", "bueno", "yes", "accept", "acepto", "reparar", "ejecutar"]) 
                    or any(w in dec_lower for w in ["aprobar", "aprobado", "aceptar", "approved"]))
     is_rejected = "no" in words or any(w in dec_lower for w in ["reject", "rechaz", "cancelar", "cancelado", "no aprobar", "rejected"])
 

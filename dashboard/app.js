@@ -86,12 +86,15 @@ async function refreshInventory() {
             card.className = "stock-card";
             if (isOutOfStock) card.style.borderColor = "rgba(255, 106, 0, 0.25)";
             
+            const partName = part.nombre || code.replace(/_/g, " ");
+            const partPrice = part.precio !== undefined ? part.precio : (part.price !== undefined ? part.price : 0.0);
+            
             card.innerHTML = `
                 <div class="stock-part-code">${code}</div>
-                <div class="stock-part-name">${part.nombre}</div>
+                <div class="stock-part-name">${partName}</div>
                 <div class="stock-part-details">
                     <span class="stock-part-qty">${stockBadge}</span>
-                    <span class="stock-part-price">$${part.precio.toFixed(2)} USD</span>
+                    <span class="stock-part-price">$${partPrice.toFixed(2)} USD</span>
                 </div>
             `;
             grid.appendChild(card);
@@ -288,14 +291,15 @@ async function runSimulationTurn(ticketId, inputStr) {
 
 // 6. Playback agent steps and trigger animations sequentially
 async function playTimelineAnimation(simulationData) {
-    const { ticket_id, success, state, events, telemetry, server_duration_ms } = simulationData;
+    const { ticket_id, success, state, events, new_events, telemetry, server_duration_ms } = simulationData;
+    const eventsToPlay = (new_events && new_events.length > 0) ? new_events : events;
     
     activeTicketId = ticket_id;
     document.getElementById("active-ticket-lbl").innerText = ticket_id;
     
     // Clear terminal and prepare step playback
     const terminal = document.getElementById("mcp-events-terminal");
-    terminal.innerHTML = `<div class="term-line comment"># Iniciando reproducción de eventos reales (Total: ${events.length})...</div>`;
+    terminal.innerHTML = `<div class="term-line comment"># Iniciando reproducción de eventos reales (Total: ${eventsToPlay.length})...</div>`;
     
     resetGraphNodes();
     
@@ -307,8 +311,8 @@ async function playTimelineAnimation(simulationData) {
     document.getElementById("mem-ticket-id").innerText = `"${ticket_id}"`;
     
     // Step by step timeline execution play
-    for (let i = 0; i < events.length; i++) {
-        const ev = events[i];
+    for (let i = 0; i < eventsToPlay.length; i++) {
+        const ev = eventsToPlay[i];
         const timestamp = new Date(ev.timestamp).toLocaleTimeString();
         
         // 1. Log event details to terminal
