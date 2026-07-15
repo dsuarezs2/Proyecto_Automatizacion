@@ -265,6 +265,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             state, new_events, success = graph.execute(state, client_input, resume_decision=resume_decision)
             elapsed_time_ms = round((time.time() - start_time) * 1000, 2)
             
+            # Imprimir advertencia en consola si el flujo queda en estado ambiguo o con error
+            if state.get("tipo_solicitud") == "ambiguo" or state.get("next_step") == "pedir_aclaracion":
+                print(f"\033[93m[CONSOLA - ATENCION] El ticket '{ticket_id}' quedó en estado AMBIGUO (esperando aclaración del cliente). Input: '{client_input}'\033[0m")
+            elif not success:
+                print(f"\033[91m[CONSOLA - ERROR] Fallo en procesamiento para el ticket '{ticket_id}'.\033[0m")
+            
             for evt in new_events:
                 if evt not in events:
                     events.append(evt)

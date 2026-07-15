@@ -175,8 +175,8 @@ def create_technical_tools(vector_store: Any, inventory_db_path: str) -> List[An
                 if part_fan:
                     matched.append(part_fan)
                     
-            # 4. Storage SSD (e.g. Alejandro Ruiz buying SSD 1TB)
-            elif any(w in symptoms_str for w in ["ssd", "disco", "almacenamiento", "ssd_1tb"]):
+            # 4. Storage SSD (e.g. Alejandro Ruiz buying SSD 1TB or slow laptop)
+            elif any(w in symptoms_str for w in ["ssd", "disco", "almacenamiento", "ssd_1tb", "lenta", "lento", "lentitud", "slow"]):
                 part = resolve_part(inventory, "SSD_1TB", "PART-SSD-1TB", 110.0)
                 if part:
                     matched.append(part)

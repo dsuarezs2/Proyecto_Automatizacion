@@ -358,7 +358,7 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
         "arranca", "inspiron", "pavilion",
         "pantalla rota", "pantalla quebrada",
         "prende", "no prende", "corto", "cortocircuito", "corto circuito", "quemada", "quemo",
-        "negro", "negra"
+        "negro", "negra", "lenta", "lento", "lentitud", "slow"
     ]
     sale_kws = ["ssd", "1tb", "compra", "comprar", "adquirir", "quiero comprar", "vender", "precio"]
     support_kws = [
@@ -384,10 +384,12 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     elif has_support:
         tipo = "soporte"
     else:
-        # Input muy vago (solo saludo, texto corto, sin equipo) → soporte como fallback
+        # Input muy vago (solo saludo, texto corto, sin equipo)
         stripped = client_input.strip()
-        if not stripped or len(stripped) < 10:
-            tipo = "soporte"  # Empty/short inputs default to soporte
+        has_intro_or_known_name = any(p in input_clean for p in ["soy ", "llamo ", "nombre es "]) or \
+                                  any(name_kw in input_clean for name_kw in ["carlos", "sofia", "alejandro", "mateo", "lucia", "pepe", "pepen"])
+        if (not stripped or len(stripped) < 10) and not has_intro_or_known_name:
+            tipo = "soporte"  # Emojis/whitespace or short vague greetings default to soporte
         else:
             tipo = "ambiguo"
 
@@ -480,6 +482,9 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
             sintomas.append("teclado bluetooth no responde")
             if "vincula" in full:
                 sintomas.append("no vincula")
+        elif any(w in full for w in ["lenta", "lento", "lentitud", "slow"]):
+            marca, desc = "HP Pavilion", "Laptop HP Pavilion lenta"
+            sintomas.append("lenta")
 
         # Fallback por marca conocida sin síntoma específico
         if not marca:
@@ -588,7 +593,9 @@ def node_atencion_cliente(state: Dict[str, Any]) -> Dict[str, Any]:
     # Si quedó ambiguo pero es un saludo simple, ruido extraño, o keyword vago → soporte
     if tipo == "ambiguo":
         stripped = client_input.strip()
-        is_short_vague = not stripped or len(stripped) < 10  # "Hola", espacios, etc.
+        has_intro_or_known_name = any(p in input_clean for p in ["soy ", "llamo ", "nombre es "]) or \
+                                  any(name_kw in input_clean for name_kw in ["carlos", "sofia", "alejandro", "mateo", "lucia", "pepe", "pepen"])
+        is_short_vague = (not stripped or len(stripped) < 10) and not has_intro_or_known_name
         has_vague_repair = norm("reparar") in all_norm and not has_device
         is_garbage_input = all(not c.isalnum() for c in stripped) if stripped else True
         if is_short_vague or is_garbage_input or has_vague_repair:
@@ -690,6 +697,8 @@ def node_tecnico_diagnostico(state: Dict[str, Any]) -> Dict[str, Any]:
         repair_type = "sobrecalentamiento"
     elif any(w in symp_str for w in ["soporte", "remoto", "bluetooth", "wireless", "vincula"]):
         repair_type = "soporte_remoto"
+    elif any(w in symp_str for w in ["lenta", "lento", "lentitud", "slow"]):
+        repair_type = "mantenimiento"
     else:
         repair_type = "mantenimiento"
 

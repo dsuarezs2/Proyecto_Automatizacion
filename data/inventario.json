@@ -9,15 +9,15 @@
   },
   "RAM_16GB": {
     "price": 80.0,
-    "stock": 5
+    "stock": 4
   },
   "Fuente_Poder": {
     "price": 90.0,
-    "stock": 2
+    "stock": 1
   },
   "SSD_1TB": {
     "price": 110.0,
-    "stock": 5
+    "stock": 4
   },
   "Mouse_Inalambrico": {
     "price": 25.0,
